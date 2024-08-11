@@ -34,18 +34,20 @@ jobs:
             echo "tag=$TAG_NAME" >> $GITHUB_ENV
           fi
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.21.11
-
       - name: Build for FreeBSD using Docker
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/go/src/app \
             -w /go/src/app \
             docker.io/empterdose/freebsd-cross-build:11.4 \
-            sh -c "export CGO_ENABLED=1 && export GOOS=freebsd && export GOARCH=amd64 && go build -ldflags='-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=${{ env.tag }}' -o /go/src/app/dist/nezha-dashboard-freebsd-amd64 cmd/dashboard/main.go"
+            sh -c "
+              # 安装 Go 环境
+              pkg update && pkg install -y go \
+              # 设置环境变量
+              export CGO_ENABLED=1 && export GOOS=freebsd && export GOARCH=amd64 \
+              # 执行构建命令
+              go build -ldflags='-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=${{ env.tag }}' -o /go/src/app/dist/nezha-dashboard-freebsd-amd64 cmd/dashboard/main.go
+            "
 
       - name: xgo build
         uses: crazy-max/ghaction-xgo@v3
