@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir -p dist
           cd cmd/dashboard
-          GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=${{ env.tag }}"
+          CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=${{ env.tag }}"
           mv dashboard ../../dist/nezha-dashboard-freebsd-amd64
 
       - name: xgo build
