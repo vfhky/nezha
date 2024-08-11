@@ -39,10 +39,10 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/go/src/app \
             -w /go/src/app \
-            docker.io/empterdose/freebsd-cross-build:11.4 \
+            golang:1.21 \
             sh -c "
-              # 安装 Go 环境
-              pkg update && pkg install -y go \
+              # 安装 FreeBSD 的交叉编译工具
+              apt-get update && apt-get install -y gcc-multilib libc6-dev-i386 \
               # 设置环境变量
               export CGO_ENABLED=1 && export GOOS=freebsd && export GOARCH=amd64 \
               # 执行构建命令
