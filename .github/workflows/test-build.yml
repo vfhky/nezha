@@ -1,0 +1,51 @@
+name: Test Build Nezha
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test-workflow  # 假设你创建了一个名为 test-workflow 的测试分支
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.20'
+
+    - name: Install FreeBSD cross-compilation toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y freebsd-buildutils
+
+    - name: Build for FreeBSD AMD64
+      env:
+        GOOS: freebsd
+        GOARCH: amd64
+        CGO_ENABLED: 0
+      run: |
+        cd cmd/dashboard
+        go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=test-version" -o dashboard
+
+    - name: Prepare files
+      run: |
+        mkdir nezhapanel
+        cp cmd/dashboard/dashboard nezhapanel/
+        cp -r resource nezhapanel/
+        rm nezhapanel/resource/resource.go
+        mkdir nezhapanel/data
+        cp script/config.yaml nezhapanel/data/config.yaml
+
+    - name: Create archive
+      run: tar -czvf nezha-freebsd-amd64.tar.gz nezhapanel
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: nezha-freebsd-amd64
+        path: nezha-freebsd-amd64.tar.gz
