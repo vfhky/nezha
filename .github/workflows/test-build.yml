@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - test-workflow  # 假设你创建了一个名为 test-workflow 的测试分支
+      - test-workflow
 
 jobs:
   build:
@@ -17,11 +17,6 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: '1.20'
-
-    - name: Install FreeBSD cross-compilation toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y freebsd-buildutils
 
     - name: Build for FreeBSD AMD64
       env:
