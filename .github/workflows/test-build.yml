@@ -16,20 +16,23 @@ jobs:
       with:
         go-version: '1.21.11'
     
-    - name: Install FreeBSD cross-compilation toolchain
+    - name: Install OSXCross
       run: |
-        sudo apt-get update
-        sudo apt-get install -y clang llvm lld
+        git clone https://github.com/tpoechtrager/osxcross
+        cd osxcross
+        wget -nc https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz
+        mv MacOSX11.3.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=10.9 ./build.sh
+        echo "$PWD/target/bin" >> $GITHUB_PATH
     
     - name: Build for FreeBSD AMD64
       env:
         GOOS: freebsd
         GOARCH: amd64
         CGO_ENABLED: 1
-        CC: clang
-        CXX: clang++
-        CGO_CFLAGS: "--target=x86_64-unknown-freebsd"
-        CGO_LDFLAGS: "--target=x86_64-unknown-freebsd"
+        CC: o64-clang
+        CXX: o64-clang++
+        PATH: ${{ github.workspace }}/osxcross/target/bin:$PATH
       run: |
         cd cmd/dashboard
         go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=$(git describe --tags --always)" -o dashboard
