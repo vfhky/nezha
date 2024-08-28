@@ -1,33 +1,26 @@
-name: Build Nezha
-
+name: Test Build Nezha
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main  # 或者您的主分支名称
-    tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - main  # 或者您的主分支名称
-  workflow_dispatch:  # 允许手动触发
-
+      - test-workflow
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-
+    
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
         go-version: '1.21.11'
-
+    
     - name: Install FreeBSD cross-compilation toolchain
       run: |
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu
-
+    
     - name: Build for FreeBSD AMD64
       env:
         GOOS: freebsd
@@ -37,7 +30,7 @@ jobs:
       run: |
         cd cmd/dashboard
         go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=$(git describe --tags --always)" -o dashboard
-
+    
     - name: Prepare files
       run: |
         mkdir nezhapanel
@@ -46,35 +39,12 @@ jobs:
         rm nezhapanel/resource/resource.go
         mkdir nezhapanel/data
         cp script/config.yaml nezhapanel/data/config.yaml
-
+    
     - name: Create archive
       run: tar -czvf nezha-freebsd-amd64.tar.gz nezhapanel
-
+    
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: nezha-freebsd-amd64
         path: nezha-freebsd-amd64.tar.gz
-
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Asset
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./nezha-freebsd-amd64.tar.gz
-        asset_name: nezha-freebsd-amd64.tar.gz
-        asset_content_type: application/gzip
