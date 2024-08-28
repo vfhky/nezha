@@ -19,14 +19,17 @@ jobs:
     - name: Install FreeBSD cross-compilation toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
+        sudo apt-get install -y clang llvm lld
     
     - name: Build for FreeBSD AMD64
       env:
         GOOS: freebsd
         GOARCH: amd64
         CGO_ENABLED: 1
-        CC: aarch64-linux-gnu-gcc
+        CC: clang
+        CXX: clang++
+        CGO_CFLAGS: "--target=x86_64-unknown-freebsd"
+        CGO_LDFLAGS: "--target=x86_64-unknown-freebsd"
       run: |
         cd cmd/dashboard
         go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=$(git describe --tags --always)" -o dashboard
@@ -40,11 +43,11 @@ jobs:
         mkdir nezhapanel/data
         cp script/config.yaml nezhapanel/data/config.yaml
     
-    - name: Create archive
-      run: tar -czvf nezha-freebsd-amd64.tar.gz nezhapanel
+    - name: Create ZIP archive
+      run: zip -r nezha-freebsd-amd64.zip nezhapanel
     
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: nezha-freebsd-amd64
-        path: nezha-freebsd-amd64.tar.gz
+        path: nezha-freebsd-amd64.zip
