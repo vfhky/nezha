@@ -14,6 +14,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools gcc-multilib
+
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -21,7 +26,7 @@ jobs:
 
     - name: Build for FreeBSD amd64
       run: |
-        GOOS=freebsd GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-linux-musl-gcc \
+        GOOS=freebsd GOARCH=amd64 CGO_ENABLED=1 CC=musl-gcc \
         go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8" \
         -o dashboard ./cmd/dashboard
 
