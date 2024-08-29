@@ -14,24 +14,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+    - name: Set up Go
+      uses: actions/setup-go@v4
       with:
-        platforms: freebsd/amd64
+        go-version: 1.21.x
 
     - name: Build for FreeBSD amd64
       run: |
-        docker run --rm \
-          -v "$PWD":/usr/src/myapp \
-          -w /usr/src/myapp \
-          freebsd:13.1 \
-          /bin/sh -c "pkg install -y go git && \
-                      GOOS=freebsd GOARCH=amd64 CGO_ENABLED=1 \
-                      go build -ldflags='-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8' \
-                      -o dashboard ./cmd/dashboard"
+        GOOS=freebsd GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-linux-musl-gcc \
+        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8" \
+        -o dashboard ./cmd/dashboard
 
     - name: Prepare output directory
       run: |
