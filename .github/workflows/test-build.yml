@@ -28,7 +28,7 @@ jobs:
         CGO_ENABLED: 0
       run: |
         cd cmd/dashboard
-        go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=$(git describe --tags --always)" -o dashboard
+        go build -tags sqlite_omit_load_extension -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=$(git describe --tags --always)" -o dashboard
     
     - name: Prepare files
       run: |
