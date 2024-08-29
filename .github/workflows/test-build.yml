@@ -1,49 +1,49 @@
-name: Test Build Nezha
+name: Build NezhaPanel
+
 on:
-  workflow_dispatch:
   push:
     branches:
-      - test-workflow
+      - main
+  pull_request:
+    branches:
+      - main
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
-    
+      uses: actions/checkout@v3
+
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
-        go-version: '1.21.11'
-    
-    - name: Modify go.mod for pure Go SQLite
+        go-version: 1.21.x
+
+    - name: Set up FreeBSD environment
       run: |
-        go mod edit -replace github.com/mattn/go-sqlite3=github.com/glebarez/go-sqlite@latest
-        go mod tidy
-    
-    - name: Build for FreeBSD AMD64
-      env:
-        GOOS: freebsd
-        GOARCH: amd64
-        CGO_ENABLED: 0
+        sudo apt-get update
+        sudo apt-get install -y qemu-user-static
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+    - name: Build for FreeBSD amd64
       run: |
-        cd cmd/dashboard
-        go build -tags sqlite_omit_load_extension -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=$(git describe --tags --always)" -o dashboard
-    
-    - name: Prepare files
+        GOOS=freebsd GOARCH=amd64 CGO_ENABLED=1 \
+        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8" \
+        -o dashboard ./cmd/dashboard
+
+    - name: Prepare output directory
       run: |
-        mkdir nezhapanel
-        cp cmd/dashboard/dashboard nezhapanel/
-        cp -r resource nezhapanel/
-        rm nezhapanel/resource/resource.go
-        mkdir nezhapanel/data
-        cp script/config.yaml nezhapanel/data/config.yaml
-    
-    - name: Create ZIP archive
-      run: zip -r nezha-freebsd-amd64.zip nezhapanel
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
+        mkdir -p ~/nezhapanel
+        cp ./dashboard ~/nezhapanel/dashboard
+        cp -r ./resource ~/nezhapanel/resource
+        rm ~/nezhapanel/resource/resource.go
+        mkdir ~/nezhapanel/data
+        cp ./script/config.yaml ~/nezhapanel/data/config.yaml
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
       with:
-        name: nezha-freebsd-amd64
-        path: nezha-freebsd-amd64.zip
+        name: NezhaPanel
+        path: ~/nezhapanel
