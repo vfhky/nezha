@@ -1,46 +1,41 @@
-name: Build NezhaPanel
+name: FreeBSD Go Build
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - test-workflow
+    branches: [ "test-workflow" ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: macos-12
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y musl-tools gcc-multilib
+    - uses: actions/checkout@v3
 
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: 1.21.x
+        go-version: '1.21.11'
 
-    - name: Build for FreeBSD amd64
+    - name: Set up FreeBSD environment
+      uses: vmactions/freebsd-vm@v1
+      with:
+        usesh: true
+        prepare: |
+          pkg install -y go
+          pkg install -y git
+          
+    - name: Build
       run: |
-        GOOS=freebsd GOARCH=amd64 CGO_ENABLED=1 CC=musl-gcc \
-        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8" \
-        -o dashboard ./cmd/dashboard
-
-    - name: Prepare output directory
-      run: |
-        mkdir -p ~/nezhapanel
-        cp ./dashboard ~/nezhapanel/dashboard
-        cp -r ./resource ~/nezhapanel/resource
+        cd cmd/dashboard
+        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+        mkdir ~/nezhapanel && cd ~/nezhapanel
+        cp ~/work/your-repo-name/your-repo-name/cmd/dashboard/dashboard ~/nezhapanel/dashboard
+        cp -r ~/work/your-repo-name/your-repo-name/resource ~/nezhapanel/resource
         rm ~/nezhapanel/resource/resource.go
         mkdir ~/nezhapanel/data
-        cp ./script/config.yaml ~/nezhapanel/data/config.yaml
+        cp ~/work/your-repo-name/your-repo-name/script/config.yaml ~/nezhapanel/data/config.yaml
 
-    - name: Upload artifacts
+    - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: NezhaPanel
+        name: nezhapanel
         path: ~/nezhapanel
