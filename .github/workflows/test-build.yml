@@ -8,40 +8,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: freebsd/freebsd-ci:13.2-release
-      options: --cpus 2
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Go
-      run: |
-        pkg update -f
-        pkg install -y go git
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
 
-    - name: Set Go environment
-      run: |
-        echo "export GOROOT=/usr/local/go" >> $HOME/.profile
-        echo "export PATH=$PATH:/usr/local/go/bin" >> $HOME/.profile
-        echo "export CGO_ENABLED=1" >> $HOME/.profile
-        source $HOME/.profile
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
 
-    - name: Build Nezha
+    - name: Build in FreeBSD container
       run: |
-        cd cmd/dashboard
-        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-        mkdir ~/nezhapanel
-        cd ~/nezhapanel
-        cp ~/work/nezha/nezha/cmd/dashboard/dashboard ~/nezhapanel/dashboard
-        cp -r ~/work/nezha/nezha/resource ~/nezhapanel/resource
-        rm ~/nezhapanel/resource/resource.go
-        mkdir ~/nezhapanel/data
-        cp ~/work/nezha/nezha/script/config.yaml ~/nezhapanel/data/config.yaml
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
+        freebsd/freebsd:13.2-RELEASE \
+        /bin/sh -c '
+          pkg update -f && \
+          pkg install -y go git && \
+          export GOROOT=/usr/local/go && \
+          export PATH=$PATH:/usr/local/go/bin && \
+          export CGO_ENABLED=1 && \
+          cd cmd/dashboard && \
+          go build -ldflags="-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8" && \
+          mkdir -p /workspace/nezhapanel && \
+          cp dashboard /workspace/nezhapanel/dashboard && \
+          cp -r /workspace/resource /workspace/nezhapanel/resource && \
+          rm /workspace/nezhapanel/resource/resource.go && \
+          mkdir -p /workspace/nezhapanel/data && \
+          cp /workspace/script/config.yaml /workspace/nezhapanel/data/config.yaml
+        '
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: nezha-freebsd-amd64
-        path: ~/nezhapanel
+        path: nezhapanel
