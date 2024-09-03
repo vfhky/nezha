@@ -1,60 +1,49 @@
-name: FreeBSD Go Build (Docker)
+name: Build and Package Nezha
 
 on:
   push:
-    branches: [ "test-workflow" ]
+    branches:
+      - test-workflow
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
+    container:
+      image: freebsd:12.2
+      options: --privileged  # 需要特权模式以运行某些 FreeBSD 命令
+
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.11
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Install dependencies
+        run: |
+          pkg install -y git go
+          go env -w GO111MODULE=on
+          go mod download
 
-    - name: Build in FreeBSD Docker container
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
-        jsevans/freebsd:14-RELEASE \
-        /bin/sh -c '
-          pkg update && pkg install -y go git
-          export GOROOT=/usr/local/go
-          export PATH=$GOROOT/bin:$PATH
-          export GOPATH=/home/runner/go
-          export CGO_ENABLED=1
-          export GOPROXY=https://proxy.golang.org,direct
-          export GOARCH=amd64
-          export GOOS=freebsd
-          export CC=cc
-          export CXX=clang++
-          export CGO_CFLAGS="-O2 -g"
-          export CGO_CPPFLAGS=""
-          export CGO_CXXFLAGS="-O2 -g"
-          export CGO_FFLAGS="-O2 -g"
-          export CGO_LDFLAGS="-O2 -g"
-          export PKG_CONFIG=pkg-config
-          go version
-          go env
+      - name: Build Nezha
+        run: |
           cd cmd/dashboard
-          go build -ldflags="-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-          mkdir -p /workspace/nezhapanel
-          cp dashboard /workspace/nezhapanel/
-          cp -r ../../resource /workspace/nezhapanel/
-          rm /workspace/nezhapanel/resource/resource.go
-          mkdir -p /workspace/nezhapanel/data
-          cp ../../script/config.yaml /workspace/nezhapanel/data/
-        '
+          go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: nezhapanel
-        path: nezhapanel
+      - name: Package Nezha
+        run: |
+          mkdir -p ~/nezhapanel
+          cp cmd/dashboard/dashboard ~/nezhapanel/dashboard
+          cp -r resource ~/nezhapanel/resource
+          rm ~/nezhapanel/resource/resource.go
+          mkdir ~/nezhapanel/data
+          cp script/config.yaml ~/nezhapanel/data/config.yaml
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nezhapanel
+          path: ~/nezhapanel
