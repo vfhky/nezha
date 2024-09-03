@@ -22,17 +22,22 @@ jobs:
         prepare: |
           pkg install -y go
           pkg install -y git
-          
+
     - name: Build
+      env:
+        GOPATH: /home/runner/go
       run: |
+        cd $GITHUB_WORKSPACE
+        pwd
+        ls -la
         cd cmd/dashboard
         go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-        mkdir ~/nezhapanel && cd ~/nezhapanel
-        cp ~/work/your-repo-name/your-repo-name/cmd/dashboard/dashboard ~/nezhapanel/dashboard
-        cp -r ~/work/your-repo-name/your-repo-name/resource ~/nezhapanel/resource
+        mkdir -p ~/nezhapanel
+        cp dashboard ~/nezhapanel/
+        cp -r ../../resource ~/nezhapanel/
         rm ~/nezhapanel/resource/resource.go
-        mkdir ~/nezhapanel/data
-        cp ~/work/your-repo-name/your-repo-name/script/config.yaml ~/nezhapanel/data/config.yaml
+        mkdir -p ~/nezhapanel/data
+        cp ../../script/config.yaml ~/nezhapanel/data/
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
