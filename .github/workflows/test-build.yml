@@ -1,4 +1,4 @@
-name: Build and Package Nezha
+name: Build Nezha on FreeBSD
 
 on:
   push:
@@ -8,42 +8,40 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     container:
-      image: freebsd:12.2
-      options: --privileged  # 需要特权模式以运行某些 FreeBSD 命令
-
+      image: freebsd/freebsd-ci:13.2-release
+      options: --cpus 2
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21.11
+    - name: Set up Go
+      run: |
+        pkg update -f
+        pkg install -y go git
 
-      - name: Install dependencies
-        run: |
-          pkg install -y git go
-          go env -w GO111MODULE=on
-          go mod download
+    - name: Set Go environment
+      run: |
+        echo "export GOROOT=/usr/local/go" >> $HOME/.profile
+        echo "export PATH=$PATH:/usr/local/go/bin" >> $HOME/.profile
+        echo "export CGO_ENABLED=1" >> $HOME/.profile
+        source $HOME/.profile
 
-      - name: Build Nezha
-        run: |
-          cd cmd/dashboard
-          go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+    - name: Build Nezha
+      run: |
+        cd cmd/dashboard
+        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+        mkdir ~/nezhapanel
+        cd ~/nezhapanel
+        cp ~/work/nezha/nezha/cmd/dashboard/dashboard ~/nezhapanel/dashboard
+        cp -r ~/work/nezha/nezha/resource ~/nezhapanel/resource
+        rm ~/nezhapanel/resource/resource.go
+        mkdir ~/nezhapanel/data
+        cp ~/work/nezha/nezha/script/config.yaml ~/nezhapanel/data/config.yaml
 
-      - name: Package Nezha
-        run: |
-          mkdir -p ~/nezhapanel
-          cp cmd/dashboard/dashboard ~/nezhapanel/dashboard
-          cp -r resource ~/nezhapanel/resource
-          rm ~/nezhapanel/resource/resource.go
-          mkdir ~/nezhapanel/data
-          cp script/config.yaml ~/nezhapanel/data/config.yaml
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: nezhapanel
-          path: ~/nezhapanel
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: nezha-freebsd-amd64
+        path: ~/nezhapanel
