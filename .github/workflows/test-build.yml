@@ -11,16 +11,16 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Build on FreeBSD
-      uses: vmactions/freebsd-vm@v0
+      uses: cross-platform-actions/action@v0.21.0
       with:
-        usesh: true
-        prepare: |
-          pkg update -f
-          pkg install -y go git
+        operating_system: freebsd
+        version: '13.2'
         run: |
+          sudo pkg update -f
+          sudo pkg install -y go git
           export GOROOT=/usr/local/go
           export PATH=$PATH:/usr/local/go/bin
           export CGO_ENABLED=1
@@ -34,7 +34,7 @@ jobs:
           cp ${{ github.workspace }}/script/config.yaml ~/nezhapanel/data/config.yaml
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: nezha-freebsd-amd64
         path: ~/nezhapanel
