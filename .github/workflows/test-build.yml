@@ -1,4 +1,4 @@
-name: Build nezha on FreeBSD
+name: Build nezha on FreeBSD-like environment
 
 on:
   push:
@@ -14,29 +14,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up FreeBSD environment using a FreeBSD container
-      - name: Set up FreeBSD container
-        uses: uraimo/run-on-arch-action@v2.2.1
+      # Step 2: Set up Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
-          architecture: amd64
-          distribution: freebsd
-          command: /bin/sh -c 'sleep 3600'  # keep the container running
-      
-      # Step 3: Run the build process inside the FreeBSD container
-      - name: Build nezha project
-        run: |
-          pkg install -y git go
-          cd cmd/dashboard
-          go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-          mkdir -p ~/nezhapanel
-          cp dashboard ~/nezhapanel/
-          cp -r ~/nezha/resource ~/nezhapanel/resource
-          rm ~/nezhapanel/resource/resource.go
-          mkdir ~/nezhapanel/data
-          cp ~/nezha/script/config.yaml ~/nezhapanel/data/config.yaml
-        shell: sh
+          go-version: '1.21'  # 需要与FreeBSD上的Go版本保持一致
 
-      # Step 4: Archive the build output as an artifact
+      # Step 3: Build using a custom Docker image
+      - name: Build project in Docker
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            golang:1.21-buster \
+            /bin/bash -c "
+              apt-get update && apt-get install -y build-essential pkg-config
+              export CGO_ENABLED=1
+              export GOOS=freebsd
+              export GOARCH=amd64
+              cd cmd/dashboard
+              go build -ldflags='-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8'
+              mkdir -p ~/nezhapanel
+              cp dashboard ~/nezhapanel/
+              cp -r ../../resource ~/nezhapanel/resource
+              rm ~/nezhapanel/resource/resource.go
+              mkdir ~/nezhapanel/data
+              cp ../../script/config.yaml ~/nezhapanel/data/config.yaml
+            "
+
+      # Step 4: Archive the build artifact
       - name: Archive the build artifact
         uses: actions/upload-artifact@v3
         with:
