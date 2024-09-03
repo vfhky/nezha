@@ -1,4 +1,4 @@
-name: FreeBSD Go Build
+name: FreeBSD Go Build (Docker)
 
 on:
   push:
@@ -6,41 +6,49 @@ on:
 
 jobs:
   build:
-    runs-on: macos-12
+    runs-on: ubuntu-latest
+    
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.11'
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
 
-    - name: Set up FreeBSD environment
-      uses: vmactions/freebsd-vm@v1
-      with:
-        usesh: true
-        prepare: |
-          pkg install -y go
-          pkg install -y git
-
-    - name: Build
-      env:
-        GOPATH: /home/runner/go
+    - name: Build in FreeBSD Docker container
       run: |
-        cd $GITHUB_WORKSPACE
-        pwd
-        ls -la
-        cd cmd/dashboard
-        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-        mkdir -p ~/nezhapanel
-        cp dashboard ~/nezhapanel/
-        cp -r ../../resource ~/nezhapanel/
-        rm ~/nezhapanel/resource/resource.go
-        mkdir -p ~/nezhapanel/data
-        cp ../../script/config.yaml ~/nezhapanel/data/
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
+        freebsd/freebsd-ci:14-1 \
+        /bin/sh -c '
+          pkg update && pkg install -y go-1.21.11 git
+          export GOROOT=/usr/local/go121
+          export PATH=$GOROOT/bin:$PATH
+          export GOPATH=/home/runner/go
+          export CGO_ENABLED=1
+          export GOPROXY=https://proxy.golang.org,direct
+          export GOARCH=amd64
+          export GOOS=freebsd
+          export CC=cc
+          export CXX=clang++
+          export CGO_CFLAGS="-O2 -g"
+          export CGO_CPPFLAGS=""
+          export CGO_CXXFLAGS="-O2 -g"
+          export CGO_FFLAGS="-O2 -g"
+          export CGO_LDFLAGS="-O2 -g"
+          export PKG_CONFIG=pkg-config
+          go version
+          go env
+          cd cmd/dashboard
+          go build -ldflags="-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+          mkdir -p /workspace/nezhapanel
+          cp dashboard /workspace/nezhapanel/
+          cp -r ../../resource /workspace/nezhapanel/
+          rm /workspace/nezhapanel/resource/resource.go
+          mkdir -p /workspace/nezhapanel/data
+          cp ../../script/config.yaml /workspace/nezhapanel/data/
+        '
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: nezhapanel
-        path: ~/nezhapanel
+        path: nezhapanel
