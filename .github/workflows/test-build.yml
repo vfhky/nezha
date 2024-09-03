@@ -1,4 +1,4 @@
-name: Build Nezha on FreeBSD
+name: Build nezha on FreeBSD
 
 on:
   push:
@@ -8,33 +8,37 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
 
-    - name: Build on FreeBSD
-      uses: cross-platform-actions/action@v0.21.0
-      with:
-        operating_system: freebsd
-        version: '13.2'
+    steps:
+      # Step 1: Checkout the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up FreeBSD environment using a FreeBSD container
+      - name: Set up FreeBSD container
+        uses: uraimo/run-on-arch-action@v2.2.1
+        with:
+          architecture: amd64
+          distribution: freebsd
+          command: /bin/sh -c 'sleep 3600'  # keep the container running
+      
+      # Step 3: Run the build process inside the FreeBSD container
+      - name: Build nezha project
         run: |
-          sudo pkg update -f
-          sudo pkg install -y go git
-          export GOROOT=/usr/local/go
-          export PATH=$PATH:/usr/local/go/bin
-          export CGO_ENABLED=1
+          pkg install -y git go
           cd cmd/dashboard
           go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
           mkdir -p ~/nezhapanel
-          cp dashboard ~/nezhapanel/dashboard
-          cp -r ${{ github.workspace }}/resource ~/nezhapanel/resource
+          cp dashboard ~/nezhapanel/
+          cp -r ~/nezha/resource ~/nezhapanel/resource
           rm ~/nezhapanel/resource/resource.go
-          mkdir -p ~/nezhapanel/data
-          cp ${{ github.workspace }}/script/config.yaml ~/nezhapanel/data/config.yaml
+          mkdir ~/nezhapanel/data
+          cp ~/nezha/script/config.yaml ~/nezhapanel/data/config.yaml
+        shell: sh
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: nezha-freebsd-amd64
-        path: ~/nezhapanel
+      # Step 4: Archive the build output as an artifact
+      - name: Archive the build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nezha-panel
+          path: ~/nezhapanel
