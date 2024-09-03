@@ -17,7 +17,7 @@ jobs:
     - name: Build in FreeBSD Docker container
       run: |
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
-        ghcr.io/vmactions/freebsd-vm:14 \
+        freebsd/freebsd:14.0-RELEASE \
         /bin/sh -c '
           pkg update && pkg install -y go-1.21.11 git
           export GOROOT=/usr/local/go121
