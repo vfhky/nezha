@@ -13,34 +13,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-
-    - name: Build in FreeBSD container
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
-        freebsd/freebsd:13.2-RELEASE \
-        /bin/sh -c '
-          pkg update -f && \
-          pkg install -y go git && \
-          export GOROOT=/usr/local/go && \
-          export PATH=$PATH:/usr/local/go/bin && \
-          export CGO_ENABLED=1 && \
-          cd cmd/dashboard && \
-          go build -ldflags="-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8" && \
-          mkdir -p /workspace/nezhapanel && \
-          cp dashboard /workspace/nezhapanel/dashboard && \
-          cp -r /workspace/resource /workspace/nezhapanel/resource && \
-          rm /workspace/nezhapanel/resource/resource.go && \
-          mkdir -p /workspace/nezhapanel/data && \
-          cp /workspace/script/config.yaml /workspace/nezhapanel/data/config.yaml
-        '
+    - name: Build on FreeBSD
+      uses: vmactions/freebsd-vm@v0
+      with:
+        usesh: true
+        prepare: |
+          pkg update -f
+          pkg install -y go git
+        run: |
+          export GOROOT=/usr/local/go
+          export PATH=$PATH:/usr/local/go/bin
+          export CGO_ENABLED=1
+          cd cmd/dashboard
+          go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+          mkdir -p ~/nezhapanel
+          cp dashboard ~/nezhapanel/dashboard
+          cp -r ${{ github.workspace }}/resource ~/nezhapanel/resource
+          rm ~/nezhapanel/resource/resource.go
+          mkdir -p ~/nezhapanel/data
+          cp ${{ github.workspace }}/script/config.yaml ~/nezhapanel/data/config.yaml
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: nezha-freebsd-amd64
-        path: nezhapanel
+        path: ~/nezhapanel
