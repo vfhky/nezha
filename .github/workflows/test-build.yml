@@ -1,50 +1,43 @@
-name: Build nezha on FreeBSD-like environment
+name: Build Nezha on FreeBSD
 
 on:
   push:
-    branches:
-      - test-workflow
+    branches: [ "test-workflow" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # Step 1: Checkout the code from the repository
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      # Step 2: Set up Go environment
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'  # 需要与FreeBSD上的Go版本保持一致
+    - name: Set up FreeBSD VM
+      uses: vmactions/freebsd-vm@v1
+      with:
+        usesh: true
+        mem: 4096
+        prepare: |
+          pkg install -y go git
 
-      # Step 3: Build using a custom Docker image
-      - name: Build project in Docker
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
-            golang:1.21-buster \
-            /bin/bash -c "
-              apt-get update && apt-get install -y build-essential pkg-config
-              export CGO_ENABLED=1
-              export GOOS=freebsd
-              export GOARCH=amd64
-              cd cmd/dashboard
-              go build -ldflags='-s -w --extldflags \"-static -fpic\" -X github.com/naiba/nezha/service/singleton.Version=0.18.8'
-              mkdir -p ~/nezhapanel
-              cp dashboard ~/nezhapanel/
-              cp -r ../../resource ~/nezhapanel/resource
-              rm ~/nezhapanel/resource/resource.go
-              mkdir ~/nezhapanel/data
-              cp ../../script/config.yaml ~/nezhapanel/data/config.yaml
-            "
-
-      # Step 4: Archive the build artifact
-      - name: Archive the build artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: nezha-panel
-          path: ~/nezhapanel
+    - name: Build Nezha
+      run: |
+        export GOROOT=/usr/local/go
+        export PATH=$PATH:$GOROOT/bin
+        export GOPATH=$HOME/go
+        export PATH=$PATH:$GOPATH/bin
+        
+        cd cmd/dashboard
+        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+        
+        mkdir ~/nezhapanel && cd ~/nezhapanel
+        cp ~/work/nezha/nezha/cmd/dashboard/dashboard ~/nezhapanel/dashboard
+        cp -r ~/work/nezha/nezha/resource ~/nezhapanel/resource
+        rm ~/nezhapanel/resource/resource.go
+        mkdir ~/nezhapanel/data
+        cp ~/work/nezha/nezha/script/config.yaml ~/nezhapanel/data/config.yaml
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: nezha-freebsd
+        path: ~/nezhapanel
