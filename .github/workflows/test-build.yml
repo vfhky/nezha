@@ -21,15 +21,15 @@ jobs:
 
     - name: Build Nezha
       run: |
-        # Find Go installation
-        GO_INSTALLATION=$(find /usr/local -name 'go' -type d | grep -E 'go[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)
-        if [ -z "$GO_INSTALLATION" ]; then
-          echo "Go installation not found"
+        # Find Go executable
+        GO_EXECUTABLE=$(which go)
+        if [ -z "$GO_EXECUTABLE" ]; then
+          echo "Go executable not found"
           exit 1
         fi
         
         # Set Go environment variables
-        export GOROOT=$GO_INSTALLATION
+        export GOROOT=$(dirname $(dirname $GO_EXECUTABLE))
         export PATH=$PATH:$GOROOT/bin
         export GOPATH=$HOME/go
         export PATH=$PATH:$GOPATH/bin
