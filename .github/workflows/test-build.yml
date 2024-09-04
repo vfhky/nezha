@@ -10,6 +10,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Fetch all history for all branches and tags
 
     - name: Set up Docker
       uses: docker/setup-buildx-action@v1
@@ -23,7 +25,7 @@ jobs:
           cd /app
           go mod download
           cd cmd/dashboard
-          CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+          CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 CC=x86_64-pc-freebsd12-gcc go build -buildvcs=false -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
         '
 
     - name: Prepare nezha panel
