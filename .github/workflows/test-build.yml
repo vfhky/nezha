@@ -34,12 +34,21 @@ jobs:
         export GOPATH=$HOME/go
         export PATH=$PATH:$GOPATH/bin
         
+        # Set GOPROXY
+        export GOPROXY=https://goproxy.io,direct
+        
         # Print Go version and environment for debugging
         go version
         go env
         
+        # Navigate to the project root
+        cd $GITHUB_WORKSPACE
+        
+        # Download dependencies
+        go mod download
+        
         # Build Nezha
-        cd $GITHUB_WORKSPACE/cmd/dashboard
+        cd cmd/dashboard
         go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
         
         # Prepare nezha panel
