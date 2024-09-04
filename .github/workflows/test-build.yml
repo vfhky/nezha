@@ -21,20 +21,34 @@ jobs:
 
     - name: Build Nezha
       run: |
-        export GOROOT=/usr/local/go
+        # Find Go installation
+        GO_INSTALLATION=$(find /usr/local -name 'go' -type d | grep -E 'go[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)
+        if [ -z "$GO_INSTALLATION" ]; then
+          echo "Go installation not found"
+          exit 1
+        fi
+        
+        # Set Go environment variables
+        export GOROOT=$GO_INSTALLATION
         export PATH=$PATH:$GOROOT/bin
         export GOPATH=$HOME/go
         export PATH=$PATH:$GOPATH/bin
         
-        cd cmd/dashboard
+        # Print Go version and environment for debugging
+        go version
+        go env
+        
+        # Build Nezha
+        cd $GITHUB_WORKSPACE/cmd/dashboard
         go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
         
+        # Prepare nezha panel
         mkdir ~/nezhapanel && cd ~/nezhapanel
-        cp ~/work/nezha/nezha/cmd/dashboard/dashboard ~/nezhapanel/dashboard
-        cp -r ~/work/nezha/nezha/resource ~/nezhapanel/resource
+        cp $GITHUB_WORKSPACE/cmd/dashboard/dashboard ~/nezhapanel/dashboard
+        cp -r $GITHUB_WORKSPACE/resource ~/nezhapanel/resource
         rm ~/nezhapanel/resource/resource.go
         mkdir ~/nezhapanel/data
-        cp ~/work/nezha/nezha/script/config.yaml ~/nezhapanel/data/config.yaml
+        cp $GITHUB_WORKSPACE/script/config.yaml ~/nezhapanel/data/config.yaml
       
     - name: Upload artifact
       uses: actions/upload-artifact@v3
