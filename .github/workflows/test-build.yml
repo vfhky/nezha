@@ -1,4 +1,4 @@
-name: Build Nezha on FreeBSD
+name: Build Nezha using Docker
 
 on:
   push:
@@ -11,54 +11,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up FreeBSD VM
-      uses: vmactions/freebsd-vm@v1
-      with:
-        usesh: true
-        mem: 4096
-        prepare: |
-          pkg install -y go git
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v1
 
     - name: Build Nezha
       run: |
-        # Find Go executable
-        GO_EXECUTABLE=$(which go)
-        if [ -z "$GO_EXECUTABLE" ]; then
-          echo "Go executable not found"
-          exit 1
-        fi
-        
-        # Set Go environment variables
-        export GOROOT=$(dirname $(dirname $GO_EXECUTABLE))
-        export PATH=$PATH:$GOROOT/bin
-        export GOPATH=$HOME/go
-        export PATH=$PATH:$GOPATH/bin
-        
-        # Set GOPROXY
-        export GOPROXY=https://goproxy.io,direct
-        
-        # Print Go version and environment for debugging
-        go version
-        go env
-        
-        # Navigate to the project root
-        cd $GITHUB_WORKSPACE
-        
-        # Download dependencies
-        go mod download
-        
-        # Build Nezha
-        cd cmd/dashboard
-        go build -ldflags="-s -w --extldflags '-static -fpic' -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-        
-        # Prepare nezha panel
-        mkdir ~/nezhapanel && cd ~/nezhapanel
-        cp $GITHUB_WORKSPACE/cmd/dashboard/dashboard ~/nezhapanel/dashboard
-        cp -r $GITHUB_WORKSPACE/resource ~/nezhapanel/resource
+        docker run --rm -v ${{ github.workspace }}:/app -w /app golang:1.21 /bin/bash -c '
+          export GOPROXY=https://goproxy.io,direct
+          go version
+          go env
+          cd /app
+          go mod download
+          cd cmd/dashboard
+          CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
+        '
+
+    - name: Prepare nezha panel
+      run: |
+        mkdir ~/nezhapanel
+        cp ${{ github.workspace }}/cmd/dashboard/dashboard ~/nezhapanel/dashboard
+        cp -r ${{ github.workspace }}/resource ~/nezhapanel/resource
         rm ~/nezhapanel/resource/resource.go
         mkdir ~/nezhapanel/data
-        cp $GITHUB_WORKSPACE/script/config.yaml ~/nezhapanel/data/config.yaml
-      
+        cp ${{ github.workspace }}/script/config.yaml ~/nezhapanel/data/config.yaml
+
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
