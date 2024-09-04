@@ -1,4 +1,4 @@
-name: Build Nezha using Docker
+name: Build Nezha on FreeBSD
 
 on:
   push:
@@ -6,27 +6,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-12
     
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0  # Fetch all history for all branches and tags
 
-    - name: Set up Docker
-      uses: docker/setup-buildx-action@v1
-
-    - name: Build Nezha
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/app -w /app golang:1.21 /bin/bash -c '
-          export GOPROXY=https://goproxy.io,direct
+    - name: Build on FreeBSD
+      uses: vmactions/freebsd-vm@v1
+      with:
+        usesh: true
+        prepare: |
+          pkg install -y go git
+        run: |
           go version
           go env
-          cd /app
+          export GOPROXY=https://goproxy.io,direct
+          cd ${{ github.workspace }}
           go mod download
           cd cmd/dashboard
-          CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 CC=x86_64-pc-freebsd12-gcc go build -buildvcs=false -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
-        '
+          CGO_ENABLED=1 go build -buildvcs=false -ldflags="-s -w -X github.com/naiba/nezha/service/singleton.Version=0.18.8"
 
     - name: Prepare nezha panel
       run: |
