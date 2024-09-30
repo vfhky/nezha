@@ -1,10 +1,8 @@
-name: Build NezhaPanel
+name: Build Nezha on FreeBSD
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - test-workflow
+    branches: [ "test-workflow" ]
 
 jobs:
   build:
